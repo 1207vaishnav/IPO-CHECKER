@@ -1,0 +1,564 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>IPO Allotment Checker</title>
+
+    <link
+        rel="stylesheet"
+        href="{% static 'checker/style.css' %}"
+    >
+
+</head>
+
+
+<body>
+
+    <div class="container">
+
+
+        <!-- ================================= -->
+        <!-- PAGE TITLE -->
+        <!-- ================================= -->
+
+        <h1>IPO ALLOTMENT CHECKER</h1>
+
+
+        <!-- ================================= -->
+        <!-- ADD PAN -->
+        <!-- ================================= -->
+
+        <h2>Add PAN</h2>
+
+        <form
+            method="POST"
+            class="add-pan"
+        >
+
+            {% csrf_token %}
+
+            <input
+                type="text"
+                name="pan_number"
+                placeholder="Enter PAN"
+                maxlength="10"
+                minlength="10"
+                pattern="[A-Za-z]{5}[0-9]{4}[A-Za-z]"
+                required
+            >
+
+            <button
+                type="submit"
+                class="add-button"
+            >
+                + Add PAN
+            </button>
+
+        </form>
+
+
+        <!-- ================================= -->
+        <!-- MESSAGE -->
+        <!-- ================================= -->
+
+        {% if message %}
+
+            <div class="message">
+                {{ message }}
+            </div>
+
+        {% endif %}
+
+
+        <!-- ================================= -->
+        <!-- SAVED PANS -->
+        <!-- ================================= -->
+
+        <h2>Saved PANs</h2>
+
+        <div class="pan-list">
+
+            {% for pan in saved_pans %}
+
+                <div
+                    class="pan-row"
+                    style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        width: 100%;
+                        box-sizing: border-box;
+                    "
+                >
+
+                    <!-- ================================= -->
+                    <!-- PAN + CHECKBOX -->
+                    <!-- ================================= -->
+
+                    <div
+                        class="pan-left"
+                        style="
+                            display: flex;
+                            align-items: center;
+                            gap: 12px;
+                        "
+                    >
+
+                        <input
+                            type="checkbox"
+                            name="selected_pans"
+                            value="{{ pan.id }}"
+                            {% if pan in selected_pans %}checked{% endif %}
+                            form="check-form"
+                        >
+
+                        <span class="pan-number">
+                            {{ pan.pan_number }}
+                        </span>
+
+                    </div>
+
+
+                    <!-- ================================= -->
+                    <!-- EDIT + DELETE -->
+                    <!-- ================================= -->
+
+                    <div
+                        class="pan-actions"
+                        style="
+                            display: flex;
+                            flex-direction: row;
+                            align-items: center;
+                            gap: 8px;
+                        "
+                    >
+
+                        <!-- EDIT BUTTON -->
+
+                        <button
+                            type="button"
+                            class="edit-button"
+                            title="Edit PAN"
+                            onclick="editPAN(
+                                '{{ pan.id }}',
+                                '{{ pan.pan_number }}'
+                            )"
+                            style="
+                                width: 44px;
+                                height: 44px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                border: none;
+                                border-radius: 10px;
+                                background: #f1f1f1;
+                                cursor: pointer;
+                                font-size: 18px;
+                                padding: 0;
+                            "
+                        >
+                            ✏️
+                        </button>
+
+
+                        <!-- DELETE BUTTON -->
+
+                        <form
+                            method="POST"
+                            style="
+                                margin: 0;
+                                padding: 0;
+                                display: flex;
+                            "
+                        >
+
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                name="delete_pan"
+                                value="{{ pan.id }}"
+                                class="delete-button"
+                                title="Delete PAN"
+                                style="
+                                    width: 44px;
+                                    height: 44px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    border: none;
+                                    border-radius: 10px;
+                                    background: #ffe3e3;
+                                    cursor: pointer;
+                                    font-size: 18px;
+                                    padding: 0;
+                                "
+                            >
+                                🗑
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            {% empty %}
+
+                <p>No PANs saved yet.</p>
+
+            {% endfor %}
+
+        </div>
+
+
+        <!-- ================================= -->
+        <!-- EDIT PAN FORM -->
+        <!-- ================================= -->
+
+        <div
+            id="edit-pan-box"
+            class="edit-pan-box"
+            style="display: none;"
+        >
+
+            <h2>Edit PAN</h2>
+
+
+            <form method="POST">
+
+                {% csrf_token %}
+
+
+                <!-- PAN ID -->
+
+                <input
+                    type="hidden"
+                    name="edit_pan_id"
+                    id="edit-pan-id"
+                >
+
+
+                <!-- PAN NUMBER -->
+
+                <input
+                    type="text"
+                    name="edit_pan_number"
+                    id="edit-pan-number"
+                    placeholder="Enter PAN"
+                    maxlength="10"
+                    minlength="10"
+                    pattern="[A-Za-z]{5}[0-9]{4}[A-Za-z]"
+                    required
+                >
+
+
+                <!-- UPDATE -->
+
+                <button
+                    type="submit"
+                    class="add-button"
+                >
+                    UPDATE PAN
+                </button>
+
+
+                <!-- CANCEL -->
+
+                <button
+                    type="button"
+                    class="cancel-button"
+                    onclick="cancelEdit()"
+                >
+                    CANCEL
+                </button>
+
+            </form>
+
+        </div>
+
+
+        <!-- ================================= -->
+        <!-- CHECK ALLOTMENT FORM -->
+        <!-- ================================= -->
+
+        <form
+            method="POST"
+            id="check-form"
+        >
+
+            {% csrf_token %}
+
+
+            <!-- ================================= -->
+            <!-- IPO -->
+            <!-- ================================= -->
+
+            <h2>IPO</h2>
+
+            <select
+                name="ipo"
+                class="ipo-select"
+                required
+            >
+
+                <option value="">
+                    Select IPO
+                </option>
+
+
+                {% for ipo in ipos %}
+
+                    <option
+                        value="{{ ipo.id }}"
+                        {% if selected_ipo == ipo.id|stringformat:"s" %}selected{% endif %}
+                    >
+                        {{ ipo.name }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+
+            <!-- ================================= -->
+            <!-- CHECK BUTTONS -->
+            <!-- ================================= -->
+
+            <div class="check-buttons">
+
+                <button
+                    type="submit"
+                    name="check_allotment"
+                    class="check-button"
+                >
+                    CHECK SELECTED
+                </button>
+
+
+                <button
+                    type="submit"
+                    name="check_all_pans"
+                    class="check-all-button"
+                >
+                    CHECK ALL PANS
+                </button>
+
+            </div>
+
+        </form>
+
+
+        <!-- ================================= -->
+        <!-- SELECTED PANS -->
+        <!-- ================================= -->
+
+        {% if selected_pans %}
+
+            <div class="results-section">
+
+                <h2>Selected PANs</h2>
+
+                {% for pan in selected_pans %}
+
+                    <p>
+                        {{ pan.pan_number }}
+                    </p>
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+
+        <!-- ================================= -->
+        <!-- ALLOTMENT RESULTS -->
+        <!-- ================================= -->
+
+        <div class="results-section">
+
+            <h2>ALLOTMENT RESULTS</h2>
+
+
+            {% if results %}
+
+                <table class="results-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>S.NO</th>
+
+                            <th>NAME</th>
+
+                            <th>STATUS</th>
+
+                            <th>SHARES</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        {% for result in results %}
+
+                            <tr>
+
+                                <!-- SERIAL NUMBER -->
+
+                                <td>
+                                    {{ forloop.counter }}
+                                </td>
+
+
+                                <!-- NAME -->
+
+                                <td>
+                                    {{ result.name }}
+                                </td>
+
+
+                                <!-- STATUS -->
+
+                                <td>
+
+                                    {% if result.status == "Allotted" %}
+
+                                        <span class="status-allotted">
+                                            ✅ Allotted
+                                        </span>
+
+                                    {% elif result.status == "Not Allotted" %}
+
+                                        <span class="status-not-allotted">
+                                            ❌ Not Allotted
+                                        </span>
+
+                                    {% else %}
+
+                                        {{ result.status }}
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- SHARES -->
+
+                                <td>
+                                    {{ result.shares }}
+                                </td>
+
+                            </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+
+            {% else %}
+
+                <p>No results yet.</p>
+
+            {% endif %}
+
+        </div>
+
+
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- EDIT PAN JAVASCRIPT -->
+    <!-- ================================= -->
+
+    <script>
+
+        function editPAN(id, panNumber) {
+
+            // Show edit box
+
+            document.getElementById(
+                "edit-pan-box"
+            ).style.display = "block";
+
+
+            // Put PAN ID into hidden field
+
+            document.getElementById(
+                "edit-pan-id"
+            ).value = id;
+
+
+            // Put PAN number into input
+
+            document.getElementById(
+                "edit-pan-number"
+            ).value = panNumber;
+
+
+            // Focus on input
+
+            document.getElementById(
+                "edit-pan-number"
+            ).focus();
+
+
+            // Scroll to edit box
+
+            document.getElementById(
+                "edit-pan-box"
+            ).scrollIntoView({
+                behavior: "smooth",
+                block: "center"
+            });
+
+        }
+
+
+        function cancelEdit() {
+
+            // Hide edit box
+
+            document.getElementById(
+                "edit-pan-box"
+            ).style.display = "none";
+
+
+            // Clear PAN ID
+
+            document.getElementById(
+                "edit-pan-id"
+            ).value = "";
+
+
+            // Clear PAN number
+
+            document.getElementById(
+                "edit-pan-number"
+            ).value = "";
+
+        }
+
+    </script>
+
+
+</body>
+
+</html>
