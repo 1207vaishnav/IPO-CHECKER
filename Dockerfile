@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN python -m playwright install chromium
+
 RUN python manage.py collectstatic --noinput
 
-CMD ["gunicorn", "ipo_checker.wsgi:application", "--bind", "0.0.0.0:$PORT"]
+CMD ["sh", "-c", "gunicorn ipo_checker.wsgi:application --bind 0.0.0.0:$PORT"]
