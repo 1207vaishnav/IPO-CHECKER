@@ -29,8 +29,14 @@ def check_mufg_multiple(pans, ipo_name):
         # =========================================
 
         browser = p.chromium.launch(
-            headless=True
-        )
+    headless=True,
+    args=[
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+    ],
+)
 
         context = browser.new_context(
             user_agent=(
