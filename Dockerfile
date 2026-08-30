@@ -14,4 +14,4 @@ COPY . .
 
 RUN python manage.py collectstatic --noinput
 
-CMD ["gunicorn", "ipo_checker.wsgi:application"]
+CMD ["gunicorn", "--timeout", "180", "ipo_checker.wsgi:application"]
