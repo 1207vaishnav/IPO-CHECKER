@@ -1,6 +1,10 @@
 import os
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 import re
+
+from playwright.sync_api import (
+    sync_playwright,
+    TimeoutError as PlaywrightTimeoutError,
+)
 
 
 MUFG_URL = "https://in.mpms.mufg.com/Initial_Offer/public-issues.html"
@@ -9,9 +13,6 @@ MUFG_URL = "https://in.mpms.mufg.com/Initial_Offer/public-issues.html"
 def check_mufg_multiple(pans, ipo_name):
     """
     Check multiple PANs using ONE Playwright browser.
-
-    This is faster than launching a new Chromium browser
-    for every PAN.
     """
 
     results = {}
@@ -26,19 +27,24 @@ def check_mufg_multiple(pans, ipo_name):
     with sync_playwright() as p:
 
         # =========================================
-        # START BROWSER ONLY ONCE
+        # PLAYWRIGHT BROWSER PATH
         # =========================================
+
         os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/ms-playwright"
 
+        print("Launching Chromium...")
+
         browser = p.chromium.launch(
-    headless=True,
-    args=[
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-    ],
-)
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+            ],
+        )
+
+        print("Chromium launched successfully")
 
         context = browser.new_context(
             user_agent=(
@@ -50,13 +56,16 @@ def check_mufg_multiple(pans, ipo_name):
 
         page = context.new_page()
 
-        # Short timeout
-        page.set_default_timeout(10000)
+        # =========================================
+        # DEFAULT TIMEOUT
+        # =========================================
+
+        page.set_default_timeout(30000)
 
         try:
 
             # =========================================
-            # OPEN MUFG ONLY ONCE
+            # OPEN MUFG WEBSITE
             # =========================================
 
             print("Opening MUFG website...")
@@ -64,11 +73,11 @@ def check_mufg_multiple(pans, ipo_name):
             page.goto(
                 MUFG_URL,
                 wait_until="domcontentloaded",
-                timeout=20000
+                timeout=30000,
             )
 
             print("MUFG page opened")
-
+            print("Current URL:", page.url)
 
             # =========================================
             # CHECK EVERY PAN
@@ -84,18 +93,14 @@ def check_mufg_multiple(pans, ipo_name):
                 result = check_single_pan(
                     page,
                     pan_number,
-                    ipo_name
+                    ipo_name,
                 )
 
                 results[pan_number] = result
 
-
         except Exception as e:
 
-            print(
-                "MUFG bulk error:",
-                e
-            )
+            print("MUFG bulk error:", repr(e))
 
             for pan_number in pans:
 
@@ -104,12 +109,17 @@ def check_mufg_multiple(pans, ipo_name):
                     results[pan_number] = {
                         "status": "MUFG Request Failed",
                         "shares": 0,
-                        "name": ""
+                        "name": "",
                     }
 
         finally:
 
-            browser.close()
+            print("Closing browser...")
+
+            try:
+                browser.close()
+            except Exception as e:
+                print("Browser close error:", repr(e))
 
     print()
     print("========================================")
@@ -127,16 +137,21 @@ def check_single_pan(page, pan_number, ipo_name):
         # 1. RELOAD MUFG PAGE
         # =========================================
 
+        print("Step 1: Opening MUFG page...")
+
         page.goto(
             MUFG_URL,
             wait_until="domcontentloaded",
-            timeout=15000
+            timeout=30000,
         )
 
+        print("Step 1 complete")
 
         # =========================================
         # 2. COMPANY DROPDOWN
         # =========================================
+
+        print("Step 2: Looking for company dropdown...")
 
         company_dropdown = page.locator(
             "#ddlCompany"
@@ -144,66 +159,76 @@ def check_single_pan(page, pan_number, ipo_name):
 
         company_dropdown.wait_for(
             state="visible",
-            timeout=5000
+            timeout=30000,
         )
 
+        print("Step 2 complete: Company dropdown found")
 
         # =========================================
         # 3. FIND IPO
         # =========================================
 
+        print("Step 3: Searching for IPO:", ipo_name)
+
         ipo_search_name = ipo_name.replace(
             " IPO",
-            ""
+            "",
         ).strip()
 
         option = company_dropdown.locator(
             "option",
-            has_text=ipo_search_name
+            has_text=ipo_search_name,
         )
 
-
-        # Fallback
+        # =========================================
+        # FALLBACK
+        # =========================================
 
         if option.count() == 0:
+
+            print(
+                "IPO not found using name:",
+                ipo_search_name,
+            )
 
             option = company_dropdown.locator(
                 "option",
-                has_text="Lalithaa Jewellery"
+                has_text="Lalithaa Jewellery",
             )
 
-
         if option.count() == 0:
+
+            print("IPO not found in dropdown")
 
             return {
                 "status": "IPO Not Found",
                 "shares": 0,
-                "name": ""
+                "name": "",
             }
-
 
         ipo_value = option.first.get_attribute(
             "value"
         )
 
-        print(
-            "IPO value:",
-            ipo_value
-        )
-
+        print("IPO value:", ipo_value)
 
         # =========================================
         # 4. SELECT IPO
         # =========================================
 
+        print("Step 4: Selecting IPO...")
+
         company_dropdown.select_option(
             value=ipo_value
         )
 
+        print("Step 4 complete")
 
         # =========================================
         # 5. SELECT PAN
         # =========================================
+
+        print("Step 5: Selecting PAN option...")
 
         pan_radio = page.locator(
             'input[type="radio"][value="PAN"]'
@@ -213,10 +238,17 @@ def check_single_pan(page, pan_number, ipo_name):
 
             pan_radio.check()
 
+            print("PAN option selected")
+
+        else:
+
+            print("PAN radio button not found")
 
         # =========================================
         # 6. ENTER PAN
         # =========================================
+
+        print("Step 6: Looking for PAN input...")
 
         pan_input = page.locator(
             "#txtStat"
@@ -224,17 +256,22 @@ def check_single_pan(page, pan_number, ipo_name):
 
         pan_input.wait_for(
             state="visible",
-            timeout=5000
+            timeout=30000,
         )
+
+        print("PAN input found")
 
         pan_input.fill(
             pan_number.strip().upper()
         )
 
+        print("PAN entered")
 
         # =========================================
         # 7. CAPTCHA
         # =========================================
+
+        print("Step 7: Checking CAPTCHA...")
 
         captcha = page.locator(
             "#txtCaptch"
@@ -246,24 +283,24 @@ def check_single_pan(page, pan_number, ipo_name):
 
                 if captcha.is_visible():
 
-                    print(
-                        "CAPTCHA REQUIRED"
-                    )
+                    print("CAPTCHA REQUIRED")
 
                     return {
                         "status": "CAPTCHA Required",
                         "shares": 0,
-                        "name": ""
+                        "name": "",
                     }
 
             except Exception:
-
                 pass
 
+        print("No visible CAPTCHA detected")
 
         # =========================================
         # 8. SUBMIT
         # =========================================
+
+        print("Step 8: Looking for submit button...")
 
         submit_button = page.locator(
             "#btnsearc"
@@ -271,40 +308,58 @@ def check_single_pan(page, pan_number, ipo_name):
 
         submit_button.wait_for(
             state="visible",
-            timeout=5000
+            timeout=30000,
         )
+
+        print("Submit button found")
 
         submit_button.click()
 
+        print("Submit button clicked")
 
         # =========================================
         # 9. WAIT FOR RESULT
         # =========================================
 
+        print("Step 9: Waiting for MUFG result...")
+
         allotted_text = page.get_by_text(
             "Securities Allotted",
-            exact=False
+            exact=False,
         )
 
         try:
 
             allotted_text.wait_for(
                 state="visible",
-                timeout=10000
+                timeout=30000,
             )
 
+            print("MUFG result found")
+
         except PlaywrightTimeoutError:
+
+            print(
+                "Result text 'Securities Allotted' "
+                "was not found within 30 seconds"
+            )
+
+            print(
+                "Current URL:",
+                page.url,
+            )
 
             return {
                 "status": "Result Not Found",
                 "shares": 0,
-                "name": ""
+                "name": "",
             }
-
 
         # =========================================
         # 10. GET APPLICANT NAME
         # =========================================
+
+        print("Step 10: Reading applicant name...")
 
         name = ""
 
@@ -312,13 +367,15 @@ def check_single_pan(page, pan_number, ipo_name):
 
             applicant_text = page.get_by_text(
                 "Sole / 1st Applicant",
-                exact=False
+                exact=False,
             )
 
             if applicant_text.count() > 0:
 
-                applicant_row = applicant_text.first.locator(
-                    "xpath=.."
+                applicant_row = (
+                    applicant_text.first.locator(
+                        "xpath=.."
+                    )
                 )
 
                 applicant_row_text = (
@@ -327,9 +384,8 @@ def check_single_pan(page, pan_number, ipo_name):
 
                 print(
                     "Applicant row:",
-                    applicant_row_text
+                    applicant_row_text,
                 )
-
 
                 # Remove label
 
@@ -337,26 +393,25 @@ def check_single_pan(page, pan_number, ipo_name):
                     r"Sole\s*/\s*1st\s*Applicant",
                     "",
                     applicant_row_text,
-                    flags=re.IGNORECASE
+                    flags=re.IGNORECASE,
                 ).strip()
-
 
                 name = name.strip(
                     " :.-"
                 )
 
-
         except Exception as e:
 
             print(
                 "Could not read applicant name:",
-                e
+                repr(e),
             )
-
 
         # =========================================
         # 11. GET ALLOTTED SHARES
         # =========================================
+
+        print("Step 11: Reading allotted shares...")
 
         shares = 0
 
@@ -372,15 +427,13 @@ def check_single_pan(page, pan_number, ipo_name):
 
             print(
                 "Allotted row:",
-                row_text
+                row_text,
             )
-
 
             numbers = re.findall(
                 r"\b\d+\b",
-                row_text
+                row_text,
             )
-
 
             if numbers:
 
@@ -388,16 +441,14 @@ def check_single_pan(page, pan_number, ipo_name):
                     numbers[-1]
                 )
 
-
         except Exception as e:
 
             print(
                 "Could not read allotted shares:",
-                e
+                repr(e),
             )
 
             shares = 0
-
 
         # =========================================
         # 12. STATUS
@@ -411,70 +462,43 @@ def check_single_pan(page, pan_number, ipo_name):
 
             status = "Not Allotted"
 
-
         # =========================================
         # 13. RESULT
         # =========================================
 
         print()
-        print(
-            "Name:",
-            name
-        )
-
-        print(
-            "Status:",
-            status
-        )
-
-        print(
-            "Shares:",
-            shares
-        )
-
+        print("Name:", name)
+        print("Status:", status)
+        print("Shares:", shares)
 
         return {
-
             "name": name,
-
             "status": status,
-
-            "shares": shares
-
+            "shares": shares,
         }
-
 
     except PlaywrightTimeoutError as e:
 
         print(
             "MUFG timeout:",
-            e
+            repr(e),
         )
 
         return {
-
             "status": "MUFG Timeout",
-
             "shares": 0,
-
-            "name": ""
-
+            "name": "",
         }
-
 
     except Exception as e:
 
         print(
             "MUFG error:",
-            e
+            repr(e),
         )
 
         return {
-
             "status": "MUFG Request Failed",
-
             "shares": 0,
-
-            "name": ""
-
+            "name": "",
         }
