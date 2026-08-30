@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 import re
 
@@ -27,6 +28,7 @@ def check_mufg_multiple(pans, ipo_name):
         # =========================================
         # START BROWSER ONLY ONCE
         # =========================================
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/ms-playwright"
 
         browser = p.chromium.launch(
     headless=True,
