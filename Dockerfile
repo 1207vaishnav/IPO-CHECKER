@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/playwright/python:v1.62.0-noble
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -6,10 +6,10 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+RUN playwright install --with-deps chromium
 
-RUN python -m playwright install chromium
+COPY . .
 
 RUN python manage.py collectstatic --noinput
 
-CMD ["sh", "-c", "gunicorn ipo_checker.wsgi:application --bind 0.0.0.0:$PORT"]
+CMD ["gunicorn", "ipo_checker.wsgi:application"]
